@@ -47,14 +47,7 @@ func (f *FastGenetic) Compute_centroids(solution []int) ([][]float64, error) {
  
     legal := f.CheckLegal(solution)
     if !legal{
-        p := int(len(solution) / f.N_clusters)
-        n := 0
-        for k := 0; k < f.N_clusters; k++{
-            for r := 0; r < p; r++{
-              solution[n] = k
-              n++
-            }
-        }
+        solution = helper.LegalString(solution, f.N_clusters)
     }
 
 	for k := 0; k < f.N_clusters; k++ {
