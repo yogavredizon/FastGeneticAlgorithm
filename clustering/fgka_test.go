@@ -82,6 +82,7 @@ func TestComputeSE(t *testing.T) {
 		fmt.Println(se)
 	}
 }
+/*
 func TestComputeFitness(t *testing.T) {
 	fg := clustering.FastGenetic{
 		X:          X,
@@ -110,14 +111,51 @@ func TestMutate(t *testing.T) {
 		X:          X,
 		PopSize:    10,
 		N_clusters: 3,
+        Thresshold: 0.5,
 	}
 
     for i := 0; i < 1000; i++{
-result, _ := fg.GeneratePop()
-f := fg.ComputeFitness(result)
-i := fg.Selection(f)
-m := fg.Mutation(result[i], 0.005)
-fmt.Println(m)
+        result, _ := fg.GeneratePop()
+        f := fg.ComputeFitness(result)
+        i := fg.Selection(f)
+        m := fg.Mutation(result[i])
+        fmt.Println(m)
 
     }
+}
+*/
+func TestKmeans(t *testing.T) {
+	fg := clustering.FastGenetic{
+		X:          X,
+		PopSize:    10,
+		N_clusters: 3,
+        Thresshold: 0.5,
+	}
+
+    for i := 0; i < 1000; i++{
+
+        result, _ := fg.GeneratePop()
+        f := []float64{}
+        for _, r := range result{
+            c, _ := fg.Compute_centroids(r)
+            f = fg.ComputeFitness(result, c)
+        }
+        j := fg.Selection(f)
+        m := fg.Mutation(result[j])
+
+        c, ci := fg.KMeans(m, 10)
+        fmt.Println(c, ci)
+    }
+}
+
+func TestFit(t *testing.T) {
+	fg := clustering.FastGenetic{
+		X:          X,
+		PopSize:    10,
+		N_clusters: 3,
+        GenSize: 10,
+        Thresshold: 0.5,
+	}
+
+    fg.Fit()
 }
