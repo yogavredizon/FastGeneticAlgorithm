@@ -157,5 +157,8 @@ func TestFit(t *testing.T) {
         Thresshold: 0.5,
 	}
 
-    fg.Fit()
+    for i := 0; i < 1000; i++{
+        c, l := fg.Fit()
+        fmt.Println(c, l)
+    }
 }

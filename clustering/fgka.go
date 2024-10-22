@@ -2,7 +2,6 @@ package clustering
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"reflect"
 	"test/helper"
@@ -225,12 +224,9 @@ func (f *FastGenetic) KMeans(solution []int, max_iters int) ([][]float64, []int)
     return centroids, solution
 }
 
-func (f *FastGenetic) Fit() error{
-    population, err := f.GeneratePop()
-    fmt.Println(population)
-    if err != nil{
-        return err
-    }
+func (f *FastGenetic) Fit() ([][]float64, []int){
+    population, _:= f.GeneratePop()
+
     centroids := [][]float64{}
     fitness := []float64{}
     for i := 0; i < f.GenSize; i++{
@@ -247,15 +243,21 @@ func (f *FastGenetic) Fit() error{
         for iM, m := range fitness[1:]{
             if min > m{
                 min = m
-                iMin = iM
+                iMin = iM + 1
             }
         }
         population[iMin] = off
         centroids = newCentroids
     }
-    fmt.Println(fitness)
-    fmt.Println(population)
-    return nil
+    max := fitness[0]
+    iMax := 0
+    for iMx, m := range fitness[1:]{
+        if max < m{
+            max= m
+            iMax = iMx + 1
+        }
+    }
+    return centroids, population[iMax] 
 }
 
 
