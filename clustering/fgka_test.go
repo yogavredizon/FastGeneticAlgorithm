@@ -82,83 +82,84 @@ func TestComputeSE(t *testing.T) {
 		fmt.Println(se)
 	}
 }
+
 /*
-func TestComputeFitness(t *testing.T) {
-	fg := clustering.FastGenetic{
-		X:          X,
-		PopSize:    10,
-		N_clusters: 3,
-	}
+	func TestComputeFitness(t *testing.T) {
+		fg := clustering.FastGenetic{
+			X:          X,
+			PopSize:    10,
+			N_clusters: 3,
+		}
 
-	result, _ := fg.GeneratePop()
-	fmt.Println(fg.ComputeFitness(result))
+		result, _ := fg.GeneratePop()
+		fmt.Println(fg.ComputeFitness(result))
 
 }
 
-func TestSelection(t *testing.T) {
-	fg := clustering.FastGenetic{
-		X:          X,
-		PopSize:    10,
-		N_clusters: 3,
+	func TestSelection(t *testing.T) {
+		fg := clustering.FastGenetic{
+			X:          X,
+			PopSize:    10,
+			N_clusters: 3,
+		}
+
+		result, _ := fg.GeneratePop()
+	    f := fg.ComputeFitness(result)
+	    fg.Selection(f)
 	}
 
-	result, _ := fg.GeneratePop()
-    f := fg.ComputeFitness(result)
-    fg.Selection(f)
-}
-func TestMutate(t *testing.T) {
-	fg := clustering.FastGenetic{
-		X:          X,
-		PopSize:    10,
-		N_clusters: 3,
-        Thresshold: 0.5,
+	func TestMutate(t *testing.T) {
+		fg := clustering.FastGenetic{
+			X:          X,
+			PopSize:    10,
+			N_clusters: 3,
+	        Thresshold: 0.5,
+		}
+
+	    for i := 0; i < 1000; i++{
+	        result, _ := fg.GeneratePop()
+	        f := fg.ComputeFitness(result)
+	        i := fg.Selection(f)
+	        m := fg.Mutation(result[i])
+	        fmt.Println(m)
+
+	    }
 	}
-
-    for i := 0; i < 1000; i++{
-        result, _ := fg.GeneratePop()
-        f := fg.ComputeFitness(result)
-        i := fg.Selection(f)
-        m := fg.Mutation(result[i])
-        fmt.Println(m)
-
-    }
-}
 */
 func TestKmeans(t *testing.T) {
 	fg := clustering.FastGenetic{
-		X:          X,
-		PopSize:    10,
-		N_clusters: 3,
-        Thresshold: 0.5,
+		X:                   X,
+		PopSize:             10,
+		N_clusters:          3,
+		MutationProbability: 0.5,
+		MaxIters:            100,
 	}
 
-    for i := 0; i < 1000; i++{
+	for i := 0; i < 1000; i++ {
 
-        result, _ := fg.GeneratePop()
-        f := []float64{}
-        for _, r := range result{
-            c, _ := fg.Compute_centroids(r)
-            f = fg.ComputeFitness(result, c)
-        }
-        j := fg.Selection(f)
-        m := fg.Mutation(result[j])
+		result, _ := fg.GeneratePop()
+		f := []float64{}
+		f = fg.ComputeFitness(result)
+		j := fg.Selection(f)
+		m := fg.Mutation(result[j])
 
-        c, ci := fg.KMeans(m, 10)
-        fmt.Println(c, ci)
-    }
+		c, ci := fg.KMeans(m)
+		fmt.Println(c, ci)
+	}
 }
 
 func TestFit(t *testing.T) {
 	fg := clustering.FastGenetic{
-		X:          X,
-		PopSize:    10,
-		N_clusters: 3,
-        GenSize: 10,
-        Thresshold: 0.5,
+		X:                   X,
+		PopSize:             100,
+		N_clusters:          3,
+		GenSize:             50,
+		MutationProbability: 0.5,
+		MaxIters:            100,
 	}
-
-    for i := 0; i < 1000; i++{
-        c, l := fg.Fit()
-        fmt.Println(c, l)
-    }
+	fmt.Println(len(fg.X))
+	for i := 0; i < 1000; i++ {
+		c, l := fg.Fit()
+		fmt.Println(c, l)
+	}
 }

@@ -8,11 +8,12 @@ import (
 )
 
 type FastGenetic struct {
-	PopSize    int
-	X          [][]float64
-	N_clusters int
-	Thresshold float64
-    GenSize int
+	PopSize             int
+	X                   [][]float64
+	N_clusters          int
+	MutationProbability float64
+	GenSize             int
+	MaxIters            int
 }
 
 func (f *FastGenetic) GeneratePop() ([][]int, error) {
@@ -46,23 +47,18 @@ func (f *FastGenetic) GeneratePop() ([][]int, error) {
 
 func (f *FastGenetic) Compute_centroids(solution []int) ([][]float64, error) {
 	pop_centroids := [][]float64{}
- 
-    legal := f.CheckLegal(solution)
-    if !legal{
-        solution = helper.LegalString(solution, f.N_clusters)
-    }
+
+	legal := f.CheckLegal(solution)
+	if !legal {
+		solution = helper.LegalString(solution, f.N_clusters)
+	}
 
 	for k := 0; k < f.N_clusters; k++ {
-		zk := []int{}
+		Xn := [][]float64{}
 		for i := 0; i < len(solution); i++ {
 			if solution[i] == k {
-				zk = append(zk, i)
+				Xn = append(Xn, f.X[i])
 			}
-		}
-
-		Xn := [][]float64{}
-		for _, z := range zk {
-			Xn = append(Xn, f.X[z])
 		}
 
 		mean := helper.Mean(Xn)
@@ -100,9 +96,10 @@ func (f *FastGenetic) ComputeSquareError(solution []int, centroids [][]float64) 
 	return twcv
 }
 
-func (f *FastGenetic) ComputeFitness(population [][]int, centroids [][]float64) []float64 {
+func (f *FastGenetic) ComputeFitness(population [][]int) []float64 {
 	se := []float64{}
 	for i := 0; i < len(population); i++ {
+		centroids, _ := f.Compute_centroids(population[i])
 		sumSquare := f.ComputeSquareError(population[i], centroids)
 		se = append(se, sumSquare)
 	}
@@ -132,133 +129,111 @@ func (f *FastGenetic) ComputeFitness(population [][]int, centroids [][]float64) 
 	return fitness
 }
 
-func (f *FastGenetic) Selection(fitness []float64) int{
-    fitnessSum := 0.0
+func (f *FastGenetic) Selection(fitness []float64) int {
+	fitnessSum := 0.0
 
-    for _, f := range fitness{
-        fitnessSum += f 
-    }
-    
-    
-    p := 0.0    
-    id := 0
-    for i, f := range fitness{
-        prob := f / fitnessSum
-        if p < prob{
-            p = prob
-            id = i
-        }
-    }
-    return id
+	for _, f := range fitness {
+		fitnessSum += f
+	}
+
+	p := 0.0
+	id := 0
+	for i, f := range fitness {
+		prob := f / fitnessSum
+		if p < prob {
+			p = prob
+			id = i
+		}
+	}
+	return id
 }
 
 // will generate offspring that will use in Kmeans calculation
-func (f *FastGenetic) Mutation(parent []int) []int{
-    if rand.Float64() < f.Thresshold{
-        offspring := []int{}
-        centroids, _ := f.Compute_centroids(parent) 
+func (f *FastGenetic) Mutation(parent []int) []int {
+	if rand.Float64() < f.MutationProbability {
+		offspring := []int{}
+		centroids, _ := f.Compute_centroids(parent)
 
-        for i := 0; i < len(parent); i++{
-            dist := []float64{}
-            max := 0.0
-            for c := 0; c < len(centroids); c++{
-                d := helper.EuclideanDistance(f.X[i], centroids[c])
-                dist = append(dist, d)
-                if max < d{
-                    max = d
-                }
-            } 
+		for i := 0; i < len(parent); i++ {
+			dist := []float64{}
+			max := 0.0
+			for c := 0; c < len(centroids); c++ {
+				d := helper.EuclideanDistance(f.X[i], centroids[c])
+				dist = append(dist, d)
+				if max < d {
+					max = d
+				}
+			}
 
-            sum := dist[0]
-            for _, ds := range dist[1:]{
-                sum += 1.5 * max - ds + 0.5
-            }
-            maxD := 0.0
-            id := 0
-            for i, ds := range dist{
-                p := (1.5 * max - ds + 0.5) / sum
-                if maxD < p{
-                    maxD = p
-                    id = i
-                } 
-            } 
-            offspring = append(offspring, id)
+			sum := dist[0]
+			for _, ds := range dist[1:] {
+				sum += 1.5*max - ds + 0.5
+			}
+			maxD := 0.0
+			id := 0
+			for i, ds := range dist {
+				p := (1.5*max - ds + 0.5) / sum
+				if maxD < p {
+					maxD = p
+					id = i
+				}
+			}
+			offspring = append(offspring, id)
 
-        }
+		}
 
-        return offspring
-    }
-    
-    return parent
+		return offspring
+	}
+
+	return parent
 }
 
-func (f *FastGenetic) KMeans(solution []int, max_iters int) ([][]float64, []int){
-    centroids := make([][]float64, f.N_clusters)
-    for i := 0; i < max_iters; i++{
-        centroids, _ = f.Compute_centroids(solution) 
-        new_solution := make([]int, len(solution))        
+func (f *FastGenetic) KMeans(solution []int) ([][]float64, []int) {
+	centroids := make([][]float64, f.N_clusters)
+	for i := 0; i < f.MaxIters; i++ {
+		centroids, _ = f.Compute_centroids(solution)
+		new_solution := make([]int, len(solution))
 
-        for s := 0; s < len(solution); s++{
-            dist := []float64{}
-            for c := 0; c < len(centroids); c++{
-                d := helper.EuclideanDistance(f.X[s], centroids[c]) 
-                dist = append(dist, d)
-            }
-                
-            min := dist[0]
-            id := 0
-            for i, d := range dist[1:]{
-               if min > d{
-                    min = d
-                    id = i + 1
-                } 
-            }
-            new_solution[s] = id
-        }
-        if reflect.DeepEqual(new_solution, solution){
-            break
-        }
-        solution = new_solution
-    }
+		for s := 0; s < len(solution); s++ {
+			dist := make([]float64, f.N_clusters)
+			for c := 0; c < len(centroids); c++ {
+				d := helper.EuclideanDistance(f.X[s], centroids[c])
+				dist[c] = d
+			}
 
-    return centroids, solution
+			id := helper.ArgMin(dist)
+			new_solution[s] = id
+		}
+		if reflect.DeepEqual(new_solution, solution) {
+			break
+		}
+		solution = new_solution
+	}
+
+	return centroids, solution
 }
 
-func (f *FastGenetic) Fit() ([][]float64, []int){
-    population, _:= f.GeneratePop()
+func (f *FastGenetic) Fit() ([][]float64, []int) {
+	population, _ := f.GeneratePop()
 
-    centroids := [][]float64{}
-    fitness := []float64{}
-    for i := 0; i < f.GenSize; i++{
-        for _, pop := range population{
-            centroids, _ = f.Compute_centroids(pop)
-            fitness = f.ComputeFitness(population, centroids) 
-        }
-        id := f.Selection(fitness)
-        off := f.Mutation(population[id])
-        newCentroids, off := f.KMeans(off, 100)
-        
-        min := fitness[0]
-        iMin := 0
-        for iM, m := range fitness[1:]{
-            if min > m{
-                min = m
-                iMin = iM + 1
-            }
-        }
-        population[iMin] = off
-        centroids = newCentroids
-    }
-    max := fitness[0]
-    iMax := 0
-    for iMx, m := range fitness[1:]{
-        if max < m{
-            max= m
-            iMax = iMx + 1
-        }
-    }
-    return centroids, population[iMax] 
+	centroids := make([][]float64, f.N_clusters)
+	fitness := make([]float64, f.PopSize)
+
+	for i := 0; i < f.GenSize; i++ {
+		fitness = f.ComputeFitness(population)
+		id := f.Selection(fitness)
+		offspring := f.Mutation(population[id])
+		newCentroids, offspring := f.KMeans(offspring)
+
+		iMin := helper.ArgMin(fitness)
+		if reflect.DeepEqual(offspring, population[iMin]) {
+			break
+		}
+
+		population[iMin] = offspring
+		centroids = newCentroids
+	}
+
+	iMax := helper.ArgMax(fitness)
+	return centroids, population[iMax]
 }
-
-
-
