@@ -2,9 +2,12 @@ package clustering
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"test/helper"
+	"test/metrics"
+	"test/preprocess"
 )
 
 type FastGenetic struct {
@@ -45,7 +48,7 @@ func (f *FastGenetic) GeneratePop() ([][]int, error) {
 	return population, nil
 }
 
-func (f *FastGenetic) Compute_centroids(solution []int) ([][]float64, error) {
+func (f *FastGenetic) ComputeCentroids(solution []int) ([][]float64, error) {
 	pop_centroids := [][]float64{}
 
 	legal := f.CheckLegal(solution)
@@ -97,11 +100,11 @@ func (f *FastGenetic) ComputeSquareError(solution []int, centroids [][]float64) 
 }
 
 func (f *FastGenetic) ComputeFitness(population [][]int) []float64 {
-	se := []float64{}
+	se := make([]float64, f.PopSize)
 	for i := 0; i < len(population); i++ {
-		centroids, _ := f.Compute_centroids(population[i])
+		centroids, _ := f.ComputeCentroids(population[i])
 		sumSquare := f.ComputeSquareError(population[i], centroids)
-		se = append(se, sumSquare)
+		se[i] = sumSquare
 	}
 
 	max := se[0]
@@ -152,10 +155,10 @@ func (f *FastGenetic) Selection(fitness []float64) int {
 func (f *FastGenetic) Mutation(parent []int) []int {
 	if rand.Float64() < f.MutationProbability {
 		offspring := []int{}
-		centroids, _ := f.Compute_centroids(parent)
+		centroids, _ := f.ComputeCentroids(parent)
 
 		for i := 0; i < len(parent); i++ {
-			dist := []float64{}
+			dist := make([]float64, len(centroids))
 			max := 0.0
 			for c := 0; c < len(centroids); c++ {
 				d := helper.EuclideanDistance(f.X[i], centroids[c])
@@ -191,18 +194,21 @@ func (f *FastGenetic) Mutation(parent []int) []int {
 func (f *FastGenetic) KMeans(solution []int) ([][]float64, []int) {
 	centroids := make([][]float64, f.N_clusters)
 	for i := 0; i < f.MaxIters; i++ {
-		centroids, _ = f.Compute_centroids(solution)
+		centroids, _ = f.ComputeCentroids(solution)
 		new_solution := make([]int, len(solution))
 
 		for s := 0; s < len(solution); s++ {
-			dist := make([]float64, f.N_clusters)
+			// replace the first lowest value to highest
+			minDistance := 9999999999999.9
+			minId := 0
 			for c := 0; c < len(centroids); c++ {
 				d := helper.EuclideanDistance(f.X[s], centroids[c])
-				dist[c] = d
+				if minDistance > d {
+					minDistance = d
+					minId = c
+				}
 			}
-
-			id := helper.ArgMin(dist)
-			new_solution[s] = id
+			new_solution[s] = minId
 		}
 		if reflect.DeepEqual(new_solution, solution) {
 			break
@@ -215,12 +221,11 @@ func (f *FastGenetic) KMeans(solution []int) ([][]float64, []int) {
 
 func (f *FastGenetic) Fit() ([][]float64, []int) {
 	population, _ := f.GeneratePop()
+	fitness := f.ComputeFitness(population)
 
 	centroids := make([][]float64, f.N_clusters)
-	fitness := make([]float64, f.PopSize)
 
 	for i := 0; i < f.GenSize; i++ {
-		fitness = f.ComputeFitness(population)
 		id := f.Selection(fitness)
 		offspring := f.Mutation(population[id])
 		newCentroids, offspring := f.KMeans(offspring)
@@ -236,4 +241,45 @@ func (f *FastGenetic) Fit() ([][]float64, []int) {
 
 	iMax := helper.ArgMax(fitness)
 	return centroids, population[iMax]
+}
+
+func (f *FastGenetic) FitWithOutliers() ([][]float64, []int) {
+	population, _ := f.GeneratePop()
+	fitness := f.ComputeFitness(population)
+
+	bestCentroids := make([][]float64, f.N_clusters)
+	bestPopulation := make([]int, f.PopSize)
+	h := 0.0
+	for i := 0; i < f.GenSize; i++ {
+		id := f.Selection(fitness)
+		offspring := f.Mutation(population[id])
+
+		centroids, offspring := f.KMeans(offspring)
+		score := metrics.Score(f.X, centroids, offspring)
+		iMin := helper.ArgMin(fitness)
+
+		if score > h {
+			h = score
+			bestCentroids = centroids
+			bestPopulation = offspring
+		}
+
+		if reflect.DeepEqual(offspring, population[iMin]) {
+			fmt.Println(i)
+			break
+		}
+		fitness[iMin] = fitness[id]
+		population[iMin] = offspring
+	}
+
+	outliers := preprocess.DetectOutliers(f.X, bestCentroids, bestPopulation)
+
+	for i := len(outliers) - 1; i > 0; i-- {
+		if outliers[i] == 1 {
+			bestPopulation = append(bestPopulation[:i], bestPopulation[i+1:]...)
+			f.X = append(f.X[:i], f.X[i+1:]...)
+		}
+	}
+	bestCentroids, bestPopulation = f.KMeans(bestPopulation)
+	return bestCentroids, bestPopulation
 }

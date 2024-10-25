@@ -62,7 +62,7 @@ func TestComputeCentroids(t *testing.T) {
 	result, _ := fg.GeneratePop()
 	fmt.Println(result)
 	for _, v := range result {
-		x, _ := fg.Compute_centroids(v)
+		x, _ := fg.ComputeCentroids(v)
 		fmt.Println(x)
 	}
 }
@@ -76,7 +76,7 @@ func TestComputeSE(t *testing.T) {
 	result, _ := fg.GeneratePop()
 	for _, v := range result {
 		fmt.Println(v)
-		x, _ := fg.Compute_centroids(v)
+		x, _ := fg.ComputeCentroids(v)
 		fmt.Println(x)
 		se := fg.ComputeSquareError(v, x)
 		fmt.Println(se)
@@ -162,4 +162,18 @@ func TestFit(t *testing.T) {
 		c, l := fg.Fit()
 		fmt.Println(c, l)
 	}
+}
+
+func TestFitWithOutliers(t *testing.T) {
+	fg := clustering.FastGenetic{
+		X:                   X,
+		PopSize:             100,
+		N_clusters:          3,
+		GenSize:             100,
+		MutationProbability: 0.5,
+		MaxIters:            300,
+	}
+	c, l := fg.FitWithOutliers()
+	fmt.Println(c, len(l), len(fg.X))
+	fmt.Println(fg.X)
 }
